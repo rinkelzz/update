@@ -32,6 +32,7 @@ $branches = [];
 if ($state === FORM_STATE_SELECT_BRANCH && !$errors) {
     try {
         $branches = fetchBranches($owner, $repository);
+
         persistConfig($owner, $repository, $excludes);
         if ($branches === []) {
             $errors[] = 'Keine Branches gefunden. Prüfen Sie Owner und Repository.';
@@ -51,6 +52,7 @@ if ($state === FORM_STATE_DOWNLOAD && $owner && $repository && $branch) {
         $zipPath = downloadBranchZip($owner, $repository, $branch);
         $messages[] = "ZIP-Archiv wurde heruntergeladen: {$zipPath}";
 
+
         persistConfig($owner, $repository, $excludes);
 
         if ($createBackup) {
@@ -59,6 +61,7 @@ if ($state === FORM_STATE_DOWNLOAD && $owner && $repository && $branch) {
                 $messages[] = "Backup erstellt: {$backupPath}";
             }
         }
+
 
         $skippedPaths = extractZip($zipPath, $targetDirectory, $excludes);
         if ($skippedPaths !== []) {
@@ -205,8 +208,8 @@ function extractZip(string $zipPath, string $targetDirectory, array $excludes): 
         throw new RuntimeException('Temporäres Verzeichnis konnte nicht gelesen werden.');
     }
 
-    $skipped = [];
 
+    $skipped = [];
     foreach ($entries as $entry) {
         if ($entry === '.' || $entry === '..') {
             continue;
@@ -214,6 +217,7 @@ function extractZip(string $zipPath, string $targetDirectory, array $excludes): 
 
         $sourcePath = $tempDir . '/' . $entry;
         if (is_dir($sourcePath)) {
+
             copyDirectory($sourcePath, $targetDirectory, $excludes, $skipped);
         }
     }
@@ -232,6 +236,7 @@ function copyDirectory(string $source, string $destination, array $excludes, arr
     );
 
     foreach ($iterator as $item) {
+
         $relativePath = substr($item->getPathname(), strlen($source));
         $relativePath = str_replace('\\', '/', $relativePath);
         $relativePath = ltrim($relativePath, '/');
