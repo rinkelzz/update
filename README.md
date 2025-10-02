@@ -12,25 +12,33 @@ Dieses Projekt enthält ein einzelnes PHP-Script (`update.php`), das direkt im W
 2. Stellen Sie sicher, dass die Dateien vom Webserver gelesen werden können und das Verzeichnis Schreibrechte für den Webserver-Benutzer besitzt.
 
 ## Konfiguration
-Im Auslieferungszustand enthält `update.config.php` nur leere Platzhalter für Owner und Repository. Sie können die Werte entweder direkt in der Datei eintragen oder sie werden automatisch nach einer erfolgreichen Aktion über das Formular gespeichert.
+Im Auslieferungszustand enthält `update.config.php` nur leere Platzhalter für Owner, Repository und optionale Ausschlüsse. Sie können die Werte entweder direkt in der Datei eintragen oder sie werden automatisch nach einer erfolgreichen Aktion über das Formular gespeichert.
 
 ```php
 <?php
 return [
     'owner' => 'Ihr-GitHub-Name',
     'repository' => 'Ihr-Repository-Name',
+    'excludes' => [
+        'config.php',
+        'storage/',
+    ],
 ];
 ```
 
 > **Hinweis:** Die Datei muss für den Webserver-Benutzer beschreibbar sein, damit die Werte automatisch aktualisiert werden können.
+
+
+**Ausschlüsse:** Jeder Eintrag in `excludes` wird relativ zur Projektwurzel interpretiert. Dateien geben Sie einfach mit Dateinamen an (z. B. `config.php`), Ordner mit abschließendem Slash (z. B. `storage/`). Diese Pfade werden beim Update nicht überschrieben.
 
 ## Bedienung
 1. Öffnen Sie `update.php` im Browser.
 2. Geben Sie GitHub-Owner und Repository an und klicken Sie auf **„Branches laden“**.
 3. Wählen Sie im zweiten Schritt den gewünschten Branch aus.
 4. Tragen Sie das Zielverzeichnis ein, in dem die Dateien aktualisiert werden sollen.
-5. Optional: Aktivieren Sie die Checkbox „Vor dem Update ein ZIP-Backup anlegen“, um einen Sicherungssatz im Zielverzeichnis zu erstellen.
-6. Klicken Sie auf **„Branch herunterladen und aktualisieren“**. Das Script lädt den Branch als ZIP-Datei, legt optional ein Backup an und überschreibt anschließend die Dateien im Zielverzeichnis.
+5. Optional: Geben Sie im Feld **„Pfade vom Update ausschließen“** Dateien oder Ordner (ein Eintrag pro Zeile) an, die nicht überschrieben werden sollen.
+6. Optional: Aktivieren Sie die Checkbox „Vor dem Update ein ZIP-Backup anlegen“, um einen Sicherungssatz im Zielverzeichnis zu erstellen.
+7. Klicken Sie auf **„Branch herunterladen und aktualisieren“**. Das Script lädt den Branch als ZIP-Datei, legt optional ein Backup an und überschreibt anschließend die Dateien im Zielverzeichnis. Ausgeschlossene Pfade werden übersprungen.
 
 Während des Ablaufs werden Statusmeldungen sowie Fehlerhinweise oberhalb des Formulars eingeblendet.
 

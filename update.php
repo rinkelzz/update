@@ -19,6 +19,9 @@ $branch = trim($_POST['branch'] ?? '');
 $state = $_POST['state'] ?? null;
 $createBackup = isset($_POST['create_backup']);
 $targetDirectory = rtrim($_POST['target_directory'] ?? __DIR__, '/');
+$excludesFromConfig = array_map('strval', $config['excludes'] ?? []);
+$excludesInput = $_POST['excludes'] ?? implode("\n", $excludesFromConfig);
+$excludes = normalizeExcludes($excludesInput);
 
 if ($state === FORM_STATE_SELECT_BRANCH && ($owner === '' || $repository === '')) {
     $errors[] = 'Bitte geben Sie sowohl einen Owner als auch ein Repository an.';
@@ -29,7 +32,8 @@ $branches = [];
 if ($state === FORM_STATE_SELECT_BRANCH && !$errors) {
     try {
         $branches = fetchBranches($owner, $repository);
-        persistConfig($owner, $repository);
+
+        persistConfig($owner, $repository, $excludes);
         if ($branches === []) {
             $errors[] = 'Keine Branches gefunden. Prüfen Sie Owner und Repository.';
             $state = null;
@@ -48,7 +52,8 @@ if ($state === FORM_STATE_DOWNLOAD && $owner && $repository && $branch) {
         $zipPath = downloadBranchZip($owner, $repository, $branch);
         $messages[] = "ZIP-Archiv wurde heruntergeladen: {$zipPath}";
 
-        persistConfig($owner, $repository);
+
+        persistConfig($owner, $repository, $excludes);
 
         if ($createBackup) {
             $backupPath = createBackup($targetDirectory);
@@ -57,7 +62,11 @@ if ($state === FORM_STATE_DOWNLOAD && $owner && $repository && $branch) {
             }
         }
 
-        extractZip($zipPath, $targetDirectory);
+
+        $skippedPaths = extractZip($zipPath, $targetDirectory, $excludes);
+        if ($skippedPaths !== []) {
+            $messages[] = 'Folgende Pfade wurden vom Update ausgeschlossen: ' . implode(', ', $skippedPaths);
+        }
         $messages[] = 'Update abgeschlossen. Dateien wurden überschrieben.';
     } catch (RuntimeException $exception) {
         $errors[] = $exception->getMessage();
@@ -152,7 +161,7 @@ function loadConfig(): array
     return is_array($data) ? $data : [];
 }
 
-function persistConfig(string $owner, string $repository): void
+function persistConfig(string $owner, string $repository, array $excludes): void
 {
     if ($owner === '' || $repository === '') {
         return;
@@ -161,6 +170,7 @@ function persistConfig(string $owner, string $repository): void
     $config = [
         'owner' => $owner,
         'repository' => $repository,
+        'excludes' => array_values($excludes),
     ];
 
     $export = var_export($config, true);
@@ -171,7 +181,7 @@ function persistConfig(string $owner, string $repository): void
     }
 }
 
-function extractZip(string $zipPath, string $targetDirectory): void
+function extractZip(string $zipPath, string $targetDirectory, array $excludes): array
 {
     $zip = new ZipArchive();
     if ($zip->open($zipPath) !== true) {
@@ -198,6 +208,8 @@ function extractZip(string $zipPath, string $targetDirectory): void
         throw new RuntimeException('Temporäres Verzeichnis konnte nicht gelesen werden.');
     }
 
+
+    $skipped = [];
     foreach ($entries as $entry) {
         if ($entry === '.' || $entry === '..') {
             continue;
@@ -205,14 +217,18 @@ function extractZip(string $zipPath, string $targetDirectory): void
 
         $sourcePath = $tempDir . '/' . $entry;
         if (is_dir($sourcePath)) {
-            copyDirectory($sourcePath, $targetDirectory);
+
+            copyDirectory($sourcePath, $targetDirectory, $excludes, $skipped);
         }
     }
 
     removeDirectory($tempDir);
+    ksort($skipped);
+
+    return array_keys($skipped);
 }
 
-function copyDirectory(string $source, string $destination): void
+function copyDirectory(string $source, string $destination, array $excludes, array &$skipped): void
 {
     $iterator = new RecursiveIteratorIterator(
         new RecursiveDirectoryIterator($source, FilesystemIterator::SKIP_DOTS),
@@ -220,13 +236,32 @@ function copyDirectory(string $source, string $destination): void
     );
 
     foreach ($iterator as $item) {
-        $targetPath = $destination . substr($item->getPathname(), strlen($source));
+
+        $relativePath = substr($item->getPathname(), strlen($source));
+        $relativePath = str_replace('\\', '/', $relativePath);
+        $relativePath = ltrim($relativePath, '/');
+
+        if ($relativePath === '') {
+            continue;
+        }
+
+        $matchedExclude = matchExclude($relativePath, $excludes);
+        if ($matchedExclude !== null) {
+            $skipped[$matchedExclude] = true;
+            continue;
+        }
+
+        $targetPath = rtrim($destination, '/\\') . '/' . $relativePath;
 
         if ($item->isDir()) {
             if (!is_dir($targetPath) && !mkdir($targetPath, 0775, true) && !is_dir($targetPath)) {
                 throw new RuntimeException('Konnte Verzeichnis nicht erstellen: ' . $targetPath);
             }
         } else {
+            $parentDir = dirname($targetPath);
+            if (!is_dir($parentDir) && !mkdir($parentDir, 0775, true) && !is_dir($parentDir)) {
+                throw new RuntimeException('Konnte Verzeichnis nicht erstellen: ' . $parentDir);
+            }
             if (!copy($item->getPathname(), $targetPath)) {
                 throw new RuntimeException('Konnte Datei nicht kopieren: ' . $targetPath);
             }
@@ -301,6 +336,46 @@ function validateTargetDirectory(string $directory): void
         throw new RuntimeException('Zielverzeichnis ist nicht beschreibbar: ' . $directory);
     }
 }
+
+function normalizeExcludes(string $input): array
+{
+    if ($input === '') {
+        return [];
+    }
+
+    $lines = preg_split('/\R+/', $input) ?: [];
+    $normalized = [];
+
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '') {
+            continue;
+        }
+
+        $line = str_replace('\\', '/', $line);
+        $line = ltrim($line, './');
+        $line = rtrim($line, '/');
+
+        if ($line === '') {
+            continue;
+        }
+
+        $normalized[$line] = true;
+    }
+
+    return array_keys($normalized);
+}
+
+function matchExclude(string $relativePath, array $excludes): ?string
+{
+    foreach ($excludes as $exclude) {
+        if ($relativePath === $exclude || str_starts_with($relativePath, $exclude . '/')) {
+            return $exclude;
+        }
+    }
+
+    return null;
+}
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -358,6 +433,10 @@ function validateTargetDirectory(string $directory): void
 
             <label for="target_directory">Zielverzeichnis</label>
             <input type="text" name="target_directory" id="target_directory" value="<?= htmlspecialchars($targetDirectory, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" required>
+
+            <label for="excludes">Pfade vom Update ausschließen (ein Eintrag pro Zeile)</label>
+            <textarea name="excludes" id="excludes" rows="4" placeholder="z. B. config.php oder storage/"><?= htmlspecialchars($excludesInput, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></textarea>
+            <p><small>Pfadangaben beziehen sich auf die Projektwurzel. Unterordner bitte mit abschließendem Slash angeben, z.&nbsp;B. <code>storage/</code>.</small></p>
 
             <label>
                 <input type="checkbox" name="create_backup" <?= $createBackup ? 'checked' : '' ?>> Vor dem Update ein ZIP-Backup anlegen
