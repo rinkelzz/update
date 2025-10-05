@@ -12,7 +12,6 @@ Dieses Projekt enthält ein einzelnes PHP-Script (`update.php`), das direkt im W
 2. Stellen Sie sicher, dass die Dateien vom Webserver gelesen werden können und das Verzeichnis Schreibrechte für den Webserver-Benutzer besitzt.
 
 ## Konfiguration
-
 Im Auslieferungszustand enthält `update.config.php` Platzhalter für Owner, Repository und optionale Ausschlüsse sowie aktive Zugangsdaten mit dem Standard-Benutzer `admin` und dem Passwort `change-me`. Sie können die Werte entweder direkt in der Datei eintragen oder sie werden (bis auf die Zugangsdaten) automatisch nach einer erfolgreichen Aktion über das Formular gespeichert.
 
 ```php
@@ -24,20 +23,15 @@ return [
         'config.php',
         'storage/',
     ],
-
+    
     'auth' => [
         'username' => 'admin',
         'password_hash' => '$2y$12$v1OUgsjnzQ7o3vrZCMSxteopMaWbIoB5KGt7HlPgQuqIuMdKHo2Y2',
-
-    'auth' => [
-        'username' => 'admin',
-        'password_hash' => '$2y$10$exampleGeneratedHash',
     ],
 ];
 ```
 
 > **Hinweis:** Die Datei muss für den Webserver-Benutzer beschreibbar sein, damit die Werte automatisch aktualisiert werden können.
-
 
 **Absicherung:** HTTP Basic Auth ist standardmäßig aktiv und verwendet den Benutzer `admin` mit dem Passwort `change-me`. Das Passwort wird als Bcrypt-Hash (`password_hash(..., PASSWORD_DEFAULT)`) dauerhaft in `update.config.php` gespeichert. Ändern Sie den Benutzer oder den Hash direkt in der Datei und erzeugen Sie neue Werte bei Bedarf mit `php -r "echo password_hash('IhrPasswort', PASSWORD_DEFAULT);"`. Sie können auch jeden anderen Generator verwenden, der kompatible Bcrypt-Hashes erzeugt. Weitere Schlüssel in der Konfiguration bleiben beim Speichern erhalten, sodass die Zugangsdaten nicht überschrieben werden.
 
@@ -46,7 +40,8 @@ return [
 ## Bedienung
 1. Öffnen Sie `update.php` im Browser.
 2. Geben Sie GitHub-Owner und Repository an und klicken Sie auf **„Branches laden“**.
-3. Wählen Sie im zweiten Schritt den gewünschten Branch aus der Liste. Für jeden Branch werden ein Zeitstempel von „von … bis …“ (basierend auf Erstellungs- und Aktualisierungsdatum), der letzte Commit sowie ein kurzer Commit-Hash angezeigt; die Sortierung erfolgt weiterhin nach dem jüngsten Commit.
+
+3. Wählen Sie im zweiten Schritt den gewünschten Branch aus der Liste. Für jeden Branch werden Erstellungs- und Aktualisierungszeit (falls abweichend), der letzte Commit sowie ein kurzer Commit-Hash angezeigt; die Sortierung erfolgt weiterhin nach dem jüngsten Commit.
 4. Tragen Sie das Zielverzeichnis ein, in dem die Dateien aktualisiert werden sollen.
 5. Optional: Geben Sie im Feld **„Pfade vom Update ausschließen“** Dateien oder Ordner (ein Eintrag pro Zeile) an, die nicht überschrieben werden sollen.
 6. Optional: Aktivieren Sie die Checkbox „Vor dem Update ein ZIP-Backup anlegen“, um einen Sicherungssatz im Zielverzeichnis zu erstellen.
