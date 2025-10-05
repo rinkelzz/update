@@ -12,7 +12,8 @@ Dieses Projekt enthält ein einzelnes PHP-Script (`update.php`), das direkt im W
 2. Stellen Sie sicher, dass die Dateien vom Webserver gelesen werden können und das Verzeichnis Schreibrechte für den Webserver-Benutzer besitzt.
 
 ## Konfiguration
-Im Auslieferungszustand enthält `update.config.php` nur leere Platzhalter für Owner, Repository und optionale Ausschlüsse. Sie können die Werte entweder direkt in der Datei eintragen oder sie werden automatisch nach einer erfolgreichen Aktion über das Formular gespeichert.
+
+Im Auslieferungszustand enthält `update.config.php` nur leere Platzhalter für Owner, Repository, optionale Ausschlüsse und – falls gewünscht – Zugangsdaten. Sie können die Werte entweder direkt in der Datei eintragen oder sie werden (bis auf die Zugangsdaten) automatisch nach einer erfolgreichen Aktion über das Formular gespeichert.
 
 ```php
 <?php
@@ -23,18 +24,25 @@ return [
         'config.php',
         'storage/',
     ],
+
+    'auth' => [
+        'username' => 'admin',
+        'password_hash' => '$2y$10$exampleGeneratedHash',
+    ],
 ];
 ```
 
 > **Hinweis:** Die Datei muss für den Webserver-Benutzer beschreibbar sein, damit die Werte automatisch aktualisiert werden können.
 
 
+**Absicherung:** Wenn `auth.username` und `auth.password_hash` gesetzt sind, schützt das Script den Zugriff per HTTP Basic Auth. Weitere Schlüssel in der Konfiguration bleiben beim Speichern erhalten, sodass die Zugangsdaten nicht überschrieben werden. Erzeugen Sie den Hash einmalig mit `php -r "echo password_hash('IhrPasswort', PASSWORD_DEFAULT);"` und tragen Sie ihn anschließend in `update.config.php` ein.
+
 **Ausschlüsse:** Jeder Eintrag in `excludes` wird relativ zur Projektwurzel interpretiert. Dateien geben Sie einfach mit Dateinamen an (z. B. `config.php`), Ordner mit abschließendem Slash (z. B. `storage/`). Diese Pfade werden beim Update nicht überschrieben.
 
 ## Bedienung
 1. Öffnen Sie `update.php` im Browser.
 2. Geben Sie GitHub-Owner und Repository an und klicken Sie auf **„Branches laden“**.
-3. Wählen Sie im zweiten Schritt den gewünschten Branch aus.
+3. Wählen Sie im zweiten Schritt den gewünschten Branch aus. Die Auswahl ist nach dem Datum des letzten Commits sortiert (neueste zuerst) und zeigt den Zeitstempel direkt an.
 4. Tragen Sie das Zielverzeichnis ein, in dem die Dateien aktualisiert werden sollen.
 5. Optional: Geben Sie im Feld **„Pfade vom Update ausschließen“** Dateien oder Ordner (ein Eintrag pro Zeile) an, die nicht überschrieben werden sollen.
 6. Optional: Aktivieren Sie die Checkbox „Vor dem Update ein ZIP-Backup anlegen“, um einen Sicherungssatz im Zielverzeichnis zu erstellen.

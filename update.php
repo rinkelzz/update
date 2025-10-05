@@ -13,6 +13,9 @@ $errors = [];
 
 $config = loadConfig();
 
+
+enforceAuthentication($config['auth'] ?? []);
+
 $owner = trim($_POST['owner'] ?? ($config['owner'] ?? ''));
 $repository = trim($_POST['repository'] ?? ($config['repository'] ?? ''));
 $branch = trim($_POST['branch'] ?? '');
@@ -32,7 +35,6 @@ $branches = [];
 if ($state === FORM_STATE_SELECT_BRANCH && !$errors) {
     try {
         $branches = fetchBranches($owner, $repository);
-
         persistConfig($owner, $repository, $excludes);
         if ($branches === []) {
             $errors[] = 'Keine Branches gefunden. Prüfen Sie Owner und Repository.';
@@ -52,7 +54,6 @@ if ($state === FORM_STATE_DOWNLOAD && $owner && $repository && $branch) {
         $zipPath = downloadBranchZip($owner, $repository, $branch);
         $messages[] = "ZIP-Archiv wurde heruntergeladen: {$zipPath}";
 
-
         persistConfig($owner, $repository, $excludes);
 
         if ($createBackup) {
@@ -61,7 +62,6 @@ if ($state === FORM_STATE_DOWNLOAD && $owner && $repository && $branch) {
                 $messages[] = "Backup erstellt: {$backupPath}";
             }
         }
-
 
         $skippedPaths = extractZip($zipPath, $targetDirectory, $excludes);
         if ($skippedPaths !== []) {
@@ -77,17 +77,51 @@ if ($state === FORM_STATE_DOWNLOAD && $owner && $repository && $branch) {
 
 function fetchBranches(string $owner, string $repo): array
 {
-    $url = sprintf('https://api.github.com/repos/%s/%s/branches', rawurlencode($owner), rawurlencode($repo));
+    $url = sprintf(
+        'https://api.github.com/repos/%s/%s/branches?per_page=100',
+        rawurlencode($owner),
+        rawurlencode($repo)
+    );
     $response = githubRequest($url);
 
     $branches = [];
     foreach ($response as $branch) {
-        if (isset($branch['name'])) {
-            $branches[] = $branch['name'];
+
+        if (!isset($branch['name'])) {
+            continue;
         }
+
+        $commitDate = null;
+        if (isset($branch['commit']['commit']['committer']['date'])) {
+            $commitDate = $branch['commit']['commit']['committer']['date'];
+        } elseif (isset($branch['commit']['commit']['author']['date'])) {
+            $commitDate = $branch['commit']['commit']['author']['date'];
+        }
+
+        $branches[] = [
+            'name' => (string) $branch['name'],
+            'commit_date' => $commitDate,
+        ];
     }
 
-    sort($branches);
+    usort($branches, static function (array $a, array $b): int {
+        $dateA = $a['commit_date'] ?? null;
+        $dateB = $b['commit_date'] ?? null;
+
+        if ($dateA === $dateB) {
+            return strcmp($a['name'], $b['name']);
+        }
+
+        if ($dateA === null) {
+            return 1;
+        }
+
+        if ($dateB === null) {
+            return -1;
+        }
+
+        return $dateA < $dateB ? 1 : -1;
+    });
 
     return $branches;
 }
@@ -167,11 +201,12 @@ function persistConfig(string $owner, string $repository, array $excludes): void
         return;
     }
 
-    $config = [
-        'owner' => $owner,
-        'repository' => $repository,
-        'excludes' => array_values($excludes),
-    ];
+
+    $config = loadConfig();
+
+    $config['owner'] = $owner;
+    $config['repository'] = $repository;
+    $config['excludes'] = array_values($excludes);
 
     $export = var_export($config, true);
     $content = "<?php\nreturn {$export};\n";
@@ -208,8 +243,8 @@ function extractZip(string $zipPath, string $targetDirectory, array $excludes): 
         throw new RuntimeException('Temporäres Verzeichnis konnte nicht gelesen werden.');
     }
 
-
     $skipped = [];
+
     foreach ($entries as $entry) {
         if ($entry === '.' || $entry === '..') {
             continue;
@@ -217,7 +252,6 @@ function extractZip(string $zipPath, string $targetDirectory, array $excludes): 
 
         $sourcePath = $tempDir . '/' . $entry;
         if (is_dir($sourcePath)) {
-
             copyDirectory($sourcePath, $targetDirectory, $excludes, $skipped);
         }
     }
@@ -236,7 +270,6 @@ function copyDirectory(string $source, string $destination, array $excludes, arr
     );
 
     foreach ($iterator as $item) {
-
         $relativePath = substr($item->getPathname(), strlen($source));
         $relativePath = str_replace('\\', '/', $relativePath);
         $relativePath = ltrim($relativePath, '/');
@@ -376,6 +409,43 @@ function matchExclude(string $relativePath, array $excludes): ?string
 
     return null;
 }
+
+function enforceAuthentication(array $authConfig): void
+{
+    $username = $authConfig['username'] ?? '';
+    $passwordHash = $authConfig['password_hash'] ?? '';
+
+    if ($username === '' || $passwordHash === '') {
+        return;
+    }
+
+    $providedUser = $_SERVER['PHP_AUTH_USER'] ?? null;
+    $providedPassword = $_SERVER['PHP_AUTH_PW'] ?? null;
+
+    if ($providedUser !== $username || !is_string($providedPassword) || !password_verify($providedPassword, $passwordHash)) {
+        header('WWW-Authenticate: Basic realm="Update Script"');
+        header('HTTP/1.1 401 Unauthorized');
+        echo 'Authentifizierung erforderlich.';
+        exit;
+    }
+}
+
+function formatBranchLabel(array $branch): string
+{
+    $label = $branch['name'];
+
+    if (!empty($branch['commit_date'])) {
+        try {
+            $date = new DateTimeImmutable($branch['commit_date']);
+            $date = $date->setTimezone(new DateTimeZone(date_default_timezone_get()));
+            $label .= ' – Stand: ' . $date->format('d.m.Y H:i');
+        } catch (Exception) {
+            // Fallback: ignorieren, falls Datum nicht geparst werden kann
+        }
+    }
+
+    return $label;
+}
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -426,8 +496,10 @@ function matchExclude(string $relativePath, array $excludes): ?string
             <label for="branch">Branch</label>
             <select name="branch" id="branch" required>
                 <option value="">Bitte wählen</option>
-                <?php foreach ($branches as $name): ?>
-                    <option value="<?= htmlspecialchars($name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" <?= $name === $branch ? 'selected' : '' ?>><?= htmlspecialchars($name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></option>
+
+                <?php foreach ($branches as $branchInfo): ?>
+                    <?php $name = $branchInfo['name']; ?>
+                    <option value="<?= htmlspecialchars($name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" <?= $name === $branch ? 'selected' : '' ?>><?= htmlspecialchars(formatBranchLabel($branchInfo), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></option>
                 <?php endforeach; ?>
             </select>
 
