@@ -13,7 +13,7 @@ Dieses Projekt enthält ein einzelnes PHP-Script (`update.php`), das direkt im W
 
 ## Konfiguration
 
-Im Auslieferungszustand enthält `update.config.php` nur leere Platzhalter für Owner, Repository, optionale Ausschlüsse und – falls gewünscht – Zugangsdaten. Sie können die Werte entweder direkt in der Datei eintragen oder sie werden (bis auf die Zugangsdaten) automatisch nach einer erfolgreichen Aktion über das Formular gespeichert.
+Im Auslieferungszustand enthält `update.config.php` Platzhalter für Owner, Repository und optionale Ausschlüsse sowie aktive Zugangsdaten mit dem Standard-Benutzer `admin` und dem Passwort `change-me`. Sie können die Werte entweder direkt in der Datei eintragen oder sie werden (bis auf die Zugangsdaten) automatisch nach einer erfolgreichen Aktion über das Formular gespeichert.
 
 ```php
 <?php
@@ -27,6 +27,10 @@ return [
 
     'auth' => [
         'username' => 'admin',
+        'password_hash' => '$2y$12$v1OUgsjnzQ7o3vrZCMSxteopMaWbIoB5KGt7HlPgQuqIuMdKHo2Y2',
+
+    'auth' => [
+        'username' => 'admin',
         'password_hash' => '$2y$10$exampleGeneratedHash',
     ],
 ];
@@ -35,14 +39,14 @@ return [
 > **Hinweis:** Die Datei muss für den Webserver-Benutzer beschreibbar sein, damit die Werte automatisch aktualisiert werden können.
 
 
-**Absicherung:** Wenn `auth.username` und `auth.password_hash` gesetzt sind, schützt das Script den Zugriff per HTTP Basic Auth. Weitere Schlüssel in der Konfiguration bleiben beim Speichern erhalten, sodass die Zugangsdaten nicht überschrieben werden. Erzeugen Sie den Hash einmalig mit `php -r "echo password_hash('IhrPasswort', PASSWORD_DEFAULT);"` und tragen Sie ihn anschließend in `update.config.php` ein.
+**Absicherung:** HTTP Basic Auth ist standardmäßig aktiv und verwendet den Benutzer `admin` mit dem Passwort `change-me`. Das Passwort wird als Bcrypt-Hash (`password_hash(..., PASSWORD_DEFAULT)`) dauerhaft in `update.config.php` gespeichert. Ändern Sie den Benutzer oder den Hash direkt in der Datei und erzeugen Sie neue Werte bei Bedarf mit `php -r "echo password_hash('IhrPasswort', PASSWORD_DEFAULT);"`. Sie können auch jeden anderen Generator verwenden, der kompatible Bcrypt-Hashes erzeugt. Weitere Schlüssel in der Konfiguration bleiben beim Speichern erhalten, sodass die Zugangsdaten nicht überschrieben werden.
 
 **Ausschlüsse:** Jeder Eintrag in `excludes` wird relativ zur Projektwurzel interpretiert. Dateien geben Sie einfach mit Dateinamen an (z. B. `config.php`), Ordner mit abschließendem Slash (z. B. `storage/`). Diese Pfade werden beim Update nicht überschrieben.
 
 ## Bedienung
 1. Öffnen Sie `update.php` im Browser.
 2. Geben Sie GitHub-Owner und Repository an und klicken Sie auf **„Branches laden“**.
-3. Wählen Sie im zweiten Schritt den gewünschten Branch aus. Die Auswahl ist nach dem Datum des letzten Commits sortiert (neueste zuerst) und zeigt den Zeitstempel direkt an.
+3. Wählen Sie im zweiten Schritt den gewünschten Branch aus der Liste. Für jeden Branch werden ein Zeitstempel von „von … bis …“ (basierend auf Erstellungs- und Aktualisierungsdatum), der letzte Commit sowie ein kurzer Commit-Hash angezeigt; die Sortierung erfolgt weiterhin nach dem jüngsten Commit.
 4. Tragen Sie das Zielverzeichnis ein, in dem die Dateien aktualisiert werden sollen.
 5. Optional: Geben Sie im Feld **„Pfade vom Update ausschließen“** Dateien oder Ordner (ein Eintrag pro Zeile) an, die nicht überschrieben werden sollen.
 6. Optional: Aktivieren Sie die Checkbox „Vor dem Update ein ZIP-Backup anlegen“, um einen Sicherungssatz im Zielverzeichnis zu erstellen.

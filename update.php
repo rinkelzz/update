@@ -13,7 +13,6 @@ $errors = [];
 
 $config = loadConfig();
 
-
 enforceAuthentication($config['auth'] ?? []);
 
 $owner = trim($_POST['owner'] ?? ($config['owner'] ?? ''));
@@ -86,21 +85,24 @@ function fetchBranches(string $owner, string $repo): array
 
     $branches = [];
     foreach ($response as $branch) {
-
         if (!isset($branch['name'])) {
             continue;
         }
 
-        $commitDate = null;
-        if (isset($branch['commit']['commit']['committer']['date'])) {
-            $commitDate = $branch['commit']['commit']['committer']['date'];
-        } elseif (isset($branch['commit']['commit']['author']['date'])) {
-            $commitDate = $branch['commit']['commit']['author']['date'];
-        }
+
+        $commit = $branch['commit']['commit'] ?? [];
+        $committerDate = $commit['committer']['date'] ?? null;
+        $authorDate = $commit['author']['date'] ?? null;
+        $commitDate = $committerDate ?? $authorDate;
 
         $branches[] = [
             'name' => (string) $branch['name'],
             'commit_date' => $commitDate,
+
+            'commit_committed_date' => $committerDate,
+            'commit_authored_date' => $authorDate,
+            'commit_message' => isset($commit['message']) ? (string) $commit['message'] : null,
+            'commit_sha' => isset($branch['commit']['sha']) ? (string) $branch['commit']['sha'] : null,
         ];
     }
 
@@ -186,21 +188,40 @@ function downloadBranchZip(string $owner, string $repo, string $branch): string
 
 function loadConfig(): array
 {
+
+    $defaults = defaultConfig();
+
     if (!is_readable(CONFIG_FILE)) {
-        return [];
+        return $defaults;
     }
 
     $data = include CONFIG_FILE;
 
-    return is_array($data) ? $data : [];
+
+    if (!is_array($data)) {
+        return $defaults;
+    }
+
+    return array_replace_recursive($defaults, $data);
 }
+
+function defaultConfig(): array
+{
+    return [
+        'owner' => '',
+        'repository' => '',
+        'excludes' => [],
+        'auth' => [
+            'username' => 'admin',
+            'password_hash' => '$2y$12$v1OUgsjnzQ7o3vrZCMSxteopMaWbIoB5KGt7HlPgQuqIuMdKHo2Y2',
+        ],
+    ];
 
 function persistConfig(string $owner, string $repository, array $excludes): void
 {
     if ($owner === '' || $repository === '') {
         return;
     }
-
 
     $config = loadConfig();
 
@@ -430,21 +451,21 @@ function enforceAuthentication(array $authConfig): void
     }
 }
 
-function formatBranchLabel(array $branch): string
-{
-    $label = $branch['name'];
 
-    if (!empty($branch['commit_date'])) {
-        try {
-            $date = new DateTimeImmutable($branch['commit_date']);
-            $date = $date->setTimezone(new DateTimeZone(date_default_timezone_get()));
-            $label .= ' – Stand: ' . $date->format('d.m.Y H:i');
-        } catch (Exception) {
-            // Fallback: ignorieren, falls Datum nicht geparst werden kann
-        }
+function formatIsoDate(?string $isoDate): ?string
+{
+    if (!$isoDate) {
+        return null;
     }
 
-    return $label;
+    try {
+        $date = new DateTimeImmutable($isoDate);
+        $date = $date->setTimezone(new DateTimeZone(date_default_timezone_get()));
+
+        return $date->format('d.m.Y H:i');
+    } catch (Exception) {
+        return null;
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -454,13 +475,24 @@ function formatBranchLabel(array $branch): string
     <title>Repository Update</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 2rem; background-color: #f7f7f7; }
-        form { background: #fff; padding: 1.5rem; border-radius: 8px; max-width: 600px; }
+
+        form { background: #fff; padding: 1.5rem; border-radius: 8px; max-width: 760px; }
         label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
-        input[type="text"], select { width: 100%; padding: 0.5rem; margin-bottom: 1rem; }
+        input[type="text"], textarea { width: 100%; padding: 0.5rem; margin-bottom: 1rem; }
         .messages { margin-bottom: 1rem; }
         .messages li { margin-bottom: 0.25rem; }
         .error { color: #b30000; }
         .success { color: #005c00; }
+
+        fieldset { border: none; padding: 0; margin: 0 0 1rem 0; }
+        .branch-list { display: grid; gap: 0.75rem; margin-bottom: 1rem; }
+        .branch-card { display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; align-items: start; background: #f1f1f1; padding: 0.75rem; border-radius: 6px; border: 1px solid #ddd; }
+        .branch-card:hover { border-color: #aaa; }
+        .branch-card input[type="radio"] { margin-top: 0.2rem; }
+        .branch-name { font-weight: bold; font-size: 1.05rem; }
+        .branch-meta { font-size: 0.9rem; color: #333; }
+        .branch-meta div { margin-bottom: 0.25rem; }
+        .branch-commit-message { margin-top: 0.5rem; font-size: 0.9rem; color: #555; white-space: pre-line; }
     </style>
 </head>
 <body>
@@ -493,15 +525,53 @@ function formatBranchLabel(array $branch): string
         <input type="text" name="repository" id="repository" value="<?= htmlspecialchars($repository, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" required>
 
         <?php if ($state === FORM_STATE_SELECT_BRANCH && $branches): ?>
-            <label for="branch">Branch</label>
-            <select name="branch" id="branch" required>
-                <option value="">Bitte wählen</option>
-
-                <?php foreach ($branches as $branchInfo): ?>
-                    <?php $name = $branchInfo['name']; ?>
-                    <option value="<?= htmlspecialchars($name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" <?= $name === $branch ? 'selected' : '' ?>><?= htmlspecialchars(formatBranchLabel($branchInfo), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></option>
-                <?php endforeach; ?>
-            </select>
+            <fieldset>
+                <legend>Branch auswählen</legend>
+                <div class="branch-list">
+                    <?php foreach ($branches as $index => $branchInfo): ?>
+                        <?php $name = $branchInfo['name']; ?>
+                        <label class="branch-card">
+                            <input type="radio" name="branch" value="<?= htmlspecialchars($name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" <?= $name === $branch ? 'checked' : '' ?> <?= ($branch === '' && $index === 0) ? 'required' : '' ?>>
+                            <div>
+                                <div class="branch-name"><?= htmlspecialchars($name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></div>
+                                <div class="branch-meta">
+                                    <?php
+                                    $createdIso = $branchInfo['commit_authored_date'] ?? null;
+                                    $createdDisplay = formatIsoDate($createdIso);
+                                    $updatedIso = $branchInfo['commit_committed_date'] ?? null;
+                                    $updatedDisplay = formatIsoDate($updatedIso);
+                                    $commitSha = $branchInfo['commit_sha'] ?? null;
+                                    ?>
+                                    <?php if ($createdDisplay !== null || $updatedDisplay !== null): ?>
+                                        <?php
+                                        $fromIso = $createdIso ?? $updatedIso;
+                                        $toIso = $updatedIso ?? $createdIso;
+                                        $fromDisplay = $createdDisplay ?? $updatedDisplay;
+                                        $toDisplay = $updatedDisplay ?? $createdDisplay ?? $fromDisplay;
+                                        ?>
+                                        <div>
+                                            Zeitraum: von
+                                            <?php if ($fromDisplay !== null): ?>
+                                                <time <?= $fromIso !== null ? 'datetime="' . htmlspecialchars((string) $fromIso, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '"' : '' ?>><?= htmlspecialchars($fromDisplay, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></time>
+                                            <?php endif; ?>
+                                            bis
+                                            <?php if ($toDisplay !== null): ?>
+                                                <time <?= $toIso !== null ? 'datetime="' . htmlspecialchars((string) $toIso, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '"' : '' ?>><?= htmlspecialchars($toDisplay, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></time>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if ($commitSha): ?>
+                                        <div>Commit: <code><?= htmlspecialchars(substr($commitSha, 0, 8), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></code></div>
+                                    <?php endif; ?>
+                                </div>
+                                <?php if (!empty($branchInfo['commit_message'])): ?>
+                                    <div class="branch-commit-message"><?= htmlspecialchars($branchInfo['commit_message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></div>
+                                <?php endif; ?>
+                            </div>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+            </fieldset>
 
             <label for="target_directory">Zielverzeichnis</label>
             <input type="text" name="target_directory" id="target_directory" value="<?= htmlspecialchars($targetDirectory, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" required>
