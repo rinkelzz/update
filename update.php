@@ -212,7 +212,6 @@ function defaultConfig(): array
             'password_hash' => '$2y$12$v1OUgsjnzQ7o3vrZCMSxteopMaWbIoB5KGt7HlPgQuqIuMdKHo2Y2',
         ],
     ];
-}
 
 function persistConfig(string $owner, string $repository, array $excludes): void
 {
@@ -536,6 +535,7 @@ function formatIsoDate(?string $isoDate): ?string
                                     $updatedDisplay = formatIsoDate($updatedIso);
                                     $commitSha = $branchInfo['commit_sha'] ?? null;
                                     ?>
+
                                     <?php if ($createdDisplay !== null): ?>
                                         <div>Erstellt am: <time datetime="<?= htmlspecialchars((string) $createdIso, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"><?= htmlspecialchars($createdDisplay, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></time></div>
                                     <?php endif; ?>

@@ -23,6 +23,7 @@ return [
         'config.php',
         'storage/',
     ],
+    
     'auth' => [
         'username' => 'admin',
         'password_hash' => '$2y$12$v1OUgsjnzQ7o3vrZCMSxteopMaWbIoB5KGt7HlPgQuqIuMdKHo2Y2',
@@ -39,6 +40,7 @@ return [
 ## Bedienung
 1. Öffnen Sie `update.php` im Browser.
 2. Geben Sie GitHub-Owner und Repository an und klicken Sie auf **„Branches laden“**.
+
 3. Wählen Sie im zweiten Schritt den gewünschten Branch aus der Liste. Für jeden Branch werden Erstellungs- und Aktualisierungszeit (falls abweichend), der letzte Commit sowie ein kurzer Commit-Hash angezeigt; die Sortierung erfolgt weiterhin nach dem jüngsten Commit.
 4. Tragen Sie das Zielverzeichnis ein, in dem die Dateien aktualisiert werden sollen.
 5. Optional: Geben Sie im Feld **„Pfade vom Update ausschließen“** Dateien oder Ordner (ein Eintrag pro Zeile) an, die nicht überschrieben werden sollen.
