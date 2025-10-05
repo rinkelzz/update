@@ -89,6 +89,7 @@ function fetchBranches(string $owner, string $repo): array
             continue;
         }
 
+
         $commit = $branch['commit']['commit'] ?? [];
         $committerDate = $commit['committer']['date'] ?? null;
         $authorDate = $commit['author']['date'] ?? null;
@@ -97,6 +98,7 @@ function fetchBranches(string $owner, string $repo): array
         $branches[] = [
             'name' => (string) $branch['name'],
             'commit_date' => $commitDate,
+
             'commit_committed_date' => $committerDate,
             'commit_authored_date' => $authorDate,
             'commit_message' => isset($commit['message']) ? (string) $commit['message'] : null,
@@ -186,6 +188,7 @@ function downloadBranchZip(string $owner, string $repo, string $branch): string
 
 function loadConfig(): array
 {
+
     $defaults = defaultConfig();
 
     if (!is_readable(CONFIG_FILE)) {
@@ -193,6 +196,7 @@ function loadConfig(): array
     }
 
     $data = include CONFIG_FILE;
+
 
     if (!is_array($data)) {
         return $defaults;
@@ -212,7 +216,6 @@ function defaultConfig(): array
             'password_hash' => '$2y$12$v1OUgsjnzQ7o3vrZCMSxteopMaWbIoB5KGt7HlPgQuqIuMdKHo2Y2',
         ],
     ];
-}
 
 function persistConfig(string $owner, string $repository, array $excludes): void
 {
@@ -448,6 +451,7 @@ function enforceAuthentication(array $authConfig): void
     }
 }
 
+
 function formatIsoDate(?string $isoDate): ?string
 {
     if (!$isoDate) {
@@ -471,6 +475,7 @@ function formatIsoDate(?string $isoDate): ?string
     <title>Repository Update</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 2rem; background-color: #f7f7f7; }
+
         form { background: #fff; padding: 1.5rem; border-radius: 8px; max-width: 760px; }
         label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
         input[type="text"], textarea { width: 100%; padding: 0.5rem; margin-bottom: 1rem; }
@@ -478,6 +483,7 @@ function formatIsoDate(?string $isoDate): ?string
         .messages li { margin-bottom: 0.25rem; }
         .error { color: #b30000; }
         .success { color: #005c00; }
+
         fieldset { border: none; padding: 0; margin: 0 0 1rem 0; }
         .branch-list { display: grid; gap: 0.75rem; margin-bottom: 1rem; }
         .branch-card { display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; align-items: start; background: #f1f1f1; padding: 0.75rem; border-radius: 6px; border: 1px solid #ddd; }
