@@ -12,6 +12,7 @@ Dieses Projekt enthält ein einzelnes PHP-Script (`update.php`), das direkt im W
 2. Stellen Sie sicher, dass die Dateien vom Webserver gelesen werden können und das Verzeichnis Schreibrechte für den Webserver-Benutzer besitzt.
 
 ## Konfiguration
+
 Im Auslieferungszustand enthält `update.config.php` nur leere Platzhalter für Owner, Repository, optionale Ausschlüsse und – falls gewünscht – Zugangsdaten. Sie können die Werte entweder direkt in der Datei eintragen oder sie werden (bis auf die Zugangsdaten) automatisch nach einer erfolgreichen Aktion über das Formular gespeichert.
 
 ```php
@@ -23,6 +24,7 @@ return [
         'config.php',
         'storage/',
     ],
+
     'auth' => [
         'username' => 'admin',
         'password_hash' => '$2y$10$exampleGeneratedHash',
@@ -31,6 +33,7 @@ return [
 ```
 
 > **Hinweis:** Die Datei muss für den Webserver-Benutzer beschreibbar sein, damit die Werte automatisch aktualisiert werden können.
+
 
 **Absicherung:** Wenn `auth.username` und `auth.password_hash` gesetzt sind, schützt das Script den Zugriff per HTTP Basic Auth. Weitere Schlüssel in der Konfiguration bleiben beim Speichern erhalten, sodass die Zugangsdaten nicht überschrieben werden. Erzeugen Sie den Hash einmalig mit `php -r "echo password_hash('IhrPasswort', PASSWORD_DEFAULT);"` und tragen Sie ihn anschließend in `update.config.php` ein.
 

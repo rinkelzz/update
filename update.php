@@ -13,6 +13,7 @@ $errors = [];
 
 $config = loadConfig();
 
+
 enforceAuthentication($config['auth'] ?? []);
 
 $owner = trim($_POST['owner'] ?? ($config['owner'] ?? ''));
@@ -85,6 +86,7 @@ function fetchBranches(string $owner, string $repo): array
 
     $branches = [];
     foreach ($response as $branch) {
+
         if (!isset($branch['name'])) {
             continue;
         }
@@ -198,6 +200,7 @@ function persistConfig(string $owner, string $repository, array $excludes): void
     if ($owner === '' || $repository === '') {
         return;
     }
+
 
     $config = loadConfig();
 
@@ -493,6 +496,7 @@ function formatBranchLabel(array $branch): string
             <label for="branch">Branch</label>
             <select name="branch" id="branch" required>
                 <option value="">Bitte wählen</option>
+
                 <?php foreach ($branches as $branchInfo): ?>
                     <?php $name = $branchInfo['name']; ?>
                     <option value="<?= htmlspecialchars($name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" <?= $name === $branch ? 'selected' : '' ?>><?= htmlspecialchars(formatBranchLabel($branchInfo), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></option>
