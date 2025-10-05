@@ -3,7 +3,8 @@
 Dieses Projekt enthält ein einzelnes PHP-Script (`update.php`), das direkt im Webroot Ihres Servers abgelegt werden kann. Es ermöglicht Ihnen, einen GitHub-Owner, ein Repository und einen Branch zu wählen und die Dateien des Branches in ein Zielverzeichnis zu übernehmen. Optional kann vor dem Update ein ZIP-Backup erstellt werden.
 
 ## Voraussetzungen
-- PHP 8.1 oder neuer mit den Erweiterungen `curl`, `zip` und `json`
+
+- PHP 7.4 oder neuer mit den Erweiterungen `curl`, `zip` und `json` (PHP 8.x wird empfohlen)
 - Schreibrechte im Zielverzeichnis sowie im Verzeichnis, in dem `update.php` liegt (für temporäre Dateien und Konfiguration)
 - Ausgehender HTTP-Zugriff auf `api.github.com` und `codeload.github.com`
 
@@ -23,7 +24,6 @@ return [
         'config.php',
         'storage/',
     ],
-    
     'auth' => [
         'username' => 'admin',
         'password_hash' => '$2y$12$v1OUgsjnzQ7o3vrZCMSxteopMaWbIoB5KGt7HlPgQuqIuMdKHo2Y2',
@@ -40,7 +40,6 @@ return [
 ## Bedienung
 1. Öffnen Sie `update.php` im Browser.
 2. Geben Sie GitHub-Owner und Repository an und klicken Sie auf **„Branches laden“**.
-
 3. Wählen Sie im zweiten Schritt den gewünschten Branch aus der Liste. Für jeden Branch werden Erstellungs- und Aktualisierungszeit (falls abweichend), der letzte Commit sowie ein kurzer Commit-Hash angezeigt; die Sortierung erfolgt weiterhin nach dem jüngsten Commit.
 4. Tragen Sie das Zielverzeichnis ein, in dem die Dateien aktualisiert werden sollen.
 5. Optional: Geben Sie im Feld **„Pfade vom Update ausschließen“** Dateien oder Ordner (ein Eintrag pro Zeile) an, die nicht überschrieben werden sollen.

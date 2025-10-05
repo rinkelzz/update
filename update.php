@@ -4,6 +4,18 @@ declare(strict_types=1);
 ini_set('display_errors', '1');
 error_reporting(E_ALL);
 
+
+if (!function_exists('str_starts_with')) {
+    function str_starts_with(string $haystack, string $needle): bool
+    {
+        if ($needle === '') {
+            return true;
+        }
+
+        return strncmp($haystack, $needle, strlen($needle)) === 0;
+    }
+}
+
 const FORM_STATE_SELECT_BRANCH = 'select_branch';
 const FORM_STATE_DOWNLOAD = 'download';
 const CONFIG_FILE = __DIR__ . '/update.config.php';
@@ -144,7 +156,7 @@ function githubRequest(string $url): array
         throw new RuntimeException('GitHub Anfrage fehlgeschlagen. Prüfen Sie Owner/Repository oder Ihre Netzwerkverbindung.');
     }
 
-    $decoded = json_decode($result, true, flags: JSON_THROW_ON_ERROR);
+    $decoded = json_decode($result, true, 512, JSON_THROW_ON_ERROR);
 
     return $decoded;
 }
@@ -212,6 +224,7 @@ function defaultConfig(): array
             'password_hash' => '$2y$12$v1OUgsjnzQ7o3vrZCMSxteopMaWbIoB5KGt7HlPgQuqIuMdKHo2Y2',
         ],
     ];
+}
 
 function persistConfig(string $owner, string $repository, array $excludes): void
 {
@@ -535,7 +548,6 @@ function formatIsoDate(?string $isoDate): ?string
                                     $updatedDisplay = formatIsoDate($updatedIso);
                                     $commitSha = $branchInfo['commit_sha'] ?? null;
                                     ?>
-
                                     <?php if ($createdDisplay !== null): ?>
                                         <div>Erstellt am: <time datetime="<?= htmlspecialchars((string) $createdIso, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"><?= htmlspecialchars($createdDisplay, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></time></div>
                                     <?php endif; ?>
