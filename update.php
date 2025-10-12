@@ -4,7 +4,6 @@ declare(strict_types=1);
 ini_set('display_errors', '1');
 error_reporting(E_ALL);
 
-
 if (!function_exists('str_starts_with')) {
     function str_starts_with(string $haystack, string $needle): bool
     {
@@ -32,7 +31,9 @@ $repository = trim($_POST['repository'] ?? ($config['repository'] ?? ''));
 $branch = trim($_POST['branch'] ?? '');
 $state = $_POST['state'] ?? null;
 $createBackup = isset($_POST['create_backup']);
-$targetDirectory = rtrim($_POST['target_directory'] ?? __DIR__, '/');
+$configuredTargetDirectory = $config['target_directory'] ?? __DIR__;
+$targetDirectoryInput = $_POST['target_directory'] ?? $configuredTargetDirectory;
+$targetDirectory = $targetDirectoryInput === '' ? '' : rtrim($targetDirectoryInput, '/');
 $excludesFromConfig = array_map('strval', $config['excludes'] ?? []);
 $excludesInput = $_POST['excludes'] ?? implode("\n", $excludesFromConfig);
 $excludes = normalizeExcludes($excludesInput);
@@ -46,7 +47,7 @@ $branches = [];
 if ($state === FORM_STATE_SELECT_BRANCH && !$errors) {
     try {
         $branches = fetchBranches($owner, $repository);
-        persistConfig($owner, $repository, $excludes);
+        persistConfig($owner, $repository, $excludes, $targetDirectory);
         if ($branches === []) {
             $errors[] = 'Keine Branches gefunden. Prüfen Sie Owner und Repository.';
             $state = null;
@@ -65,7 +66,7 @@ if ($state === FORM_STATE_DOWNLOAD && $owner && $repository && $branch) {
         $zipPath = downloadBranchZip($owner, $repository, $branch);
         $messages[] = "ZIP-Archiv wurde heruntergeladen: {$zipPath}";
 
-        persistConfig($owner, $repository, $excludes);
+        persistConfig($owner, $repository, $excludes, $targetDirectory);
 
         if ($createBackup) {
             $backupPath = createBackup($targetDirectory);
@@ -219,6 +220,7 @@ function defaultConfig(): array
         'owner' => '',
         'repository' => '',
         'excludes' => [],
+        'target_directory' => __DIR__,
         'auth' => [
             'username' => 'admin',
             'password_hash' => '$2y$12$v1OUgsjnzQ7o3vrZCMSxteopMaWbIoB5KGt7HlPgQuqIuMdKHo2Y2',
@@ -226,7 +228,7 @@ function defaultConfig(): array
     ];
 }
 
-function persistConfig(string $owner, string $repository, array $excludes): void
+function persistConfig(string $owner, string $repository, array $excludes, string $targetDirectory): void
 {
     if ($owner === '' || $repository === '') {
         return;
@@ -237,6 +239,9 @@ function persistConfig(string $owner, string $repository, array $excludes): void
     $config['owner'] = $owner;
     $config['repository'] = $repository;
     $config['excludes'] = array_values($excludes);
+    if ($targetDirectory !== '') {
+        $config['target_directory'] = $targetDirectory;
+    }
 
     $export = var_export($config, true);
     $content = "<?php\nreturn {$export};\n";
