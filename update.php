@@ -1064,6 +1064,7 @@ function formatIsoDate(?string $isoDate): ?string
                     <span class="subtitle">Commit-Details &amp; Zeitleiste im Blick</span>
                 </div>
             <fieldset>
+
                 <div class="branch-list">
                     <?php foreach ($branches as $index => $branchInfo): ?>
                         <?php $name = $branchInfo['name']; ?>
