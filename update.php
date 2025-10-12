@@ -487,57 +487,584 @@ function formatIsoDate(?string $isoDate): ?string
     <meta charset="UTF-8">
     <title>Repository Update</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 2rem; background-color: #f7f7f7; }
-        form { background: #fff; padding: 1.5rem; border-radius: 8px; max-width: 760px; }
-        label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
-        input[type="text"], textarea { width: 100%; padding: 0.5rem; margin-bottom: 1rem; }
-        .messages { margin-bottom: 1rem; }
-        .messages li { margin-bottom: 0.25rem; }
-        .error { color: #b30000; }
-        .success { color: #005c00; }
-        fieldset { border: none; padding: 0; margin: 0 0 1rem 0; }
-        .branch-list { display: grid; gap: 0.75rem; margin-bottom: 1rem; }
-        .branch-card { display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; align-items: start; background: #f1f1f1; padding: 0.75rem; border-radius: 6px; border: 1px solid #ddd; }
-        .branch-card:hover { border-color: #aaa; }
-        .branch-card input[type="radio"] { margin-top: 0.2rem; }
-        .branch-name { font-weight: bold; font-size: 1.05rem; }
-        .branch-meta { font-size: 0.9rem; color: #333; }
-        .branch-meta div { margin-bottom: 0.25rem; }
-        .branch-commit-message { margin-top: 0.5rem; font-size: 0.9rem; color: #555; white-space: pre-line; }
+        :root {
+            color-scheme: light dark;
+            --bg-gradient: linear-gradient(135deg, #eef2ff 0%, #fdf2f8 35%, #ecfdf5 100%);
+            --bg-accent-a: rgba(99, 102, 241, 0.28);
+            --bg-accent-b: rgba(236, 72, 153, 0.25);
+            --bg-accent-c: rgba(16, 185, 129, 0.25);
+            --surface: rgba(255, 255, 255, 0.86);
+            --surface-strong: rgba(255, 255, 255, 0.95);
+            --text-color: #0f172a;
+            --text-secondary: #475569;
+            --border-color: rgba(148, 163, 184, 0.3);
+            --accent: #6366f1;
+            --accent-strong: #4f46e5;
+            --accent-soft: rgba(99, 102, 241, 0.15);
+            --accent-soft-strong: rgba(79, 70, 229, 0.18);
+            --success: #16a34a;
+            --error: #dc2626;
+            font-family: "Inter", "Manrope", "Segoe UI", system-ui, -apple-system, sans-serif;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-gradient: linear-gradient(135deg, #111827 0%, #1f2937 35%, #0f172a 100%);
+                --surface: rgba(17, 24, 39, 0.8);
+                --surface-strong: rgba(15, 23, 42, 0.92);
+                --text-color: #f8fafc;
+                --text-secondary: #cbd5f5;
+                --border-color: rgba(148, 163, 184, 0.25);
+                --accent-soft: rgba(129, 140, 248, 0.2);
+                --accent-soft-strong: rgba(129, 140, 248, 0.25);
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            background: var(--bg-gradient);
+            color: var(--text-color);
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .backdrop {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .backdrop span {
+            position: absolute;
+            width: 420px;
+            height: 420px;
+            border-radius: 50%;
+            filter: blur(90px);
+            opacity: 0.6;
+            animation: float 18s ease-in-out infinite;
+        }
+
+        .backdrop .orb-a {
+            background: var(--bg-accent-a);
+            top: -80px;
+            left: -120px;
+            animation-delay: 0s;
+        }
+
+        .backdrop .orb-b {
+            background: var(--bg-accent-b);
+            top: 30%;
+            right: -160px;
+            animation-delay: 4s;
+        }
+
+        .backdrop .orb-c {
+            background: var(--bg-accent-c);
+            bottom: -140px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation-delay: 8s;
+        }
+
+        @keyframes float {
+            0%,
+            100% {
+                transform: translate3d(0, 0, 0) scale(1);
+            }
+
+            50% {
+                transform: translate3d(20px, -30px, 0) scale(1.05);
+            }
+        }
+
+        .layout {
+            width: min(980px, calc(100% - 3rem));
+            margin: 3.5rem auto 4.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .app-card {
+            background: var(--surface);
+            border-radius: 24px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 30px 90px rgba(15, 23, 42, 0.16);
+            backdrop-filter: blur(18px);
+            padding: clamp(1.75rem, 2.5vw + 1.25rem, 3rem);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .app-card::before {
+            content: "";
+            position: absolute;
+            inset: 1px;
+            border-radius: 22px;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.45));
+            z-index: -1;
+        }
+
+        .hero {
+            display: grid;
+            gap: 0.75rem;
+            margin-bottom: 2.75rem;
+        }
+
+        .hero-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--accent-strong);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .hero-label::before {
+            content: "";
+            width: 30px;
+            height: 1px;
+            background: currentColor;
+            opacity: 0.45;
+        }
+
+        .hero h1 {
+            margin: 0;
+            font-size: clamp(1.85rem, 1.2rem + 1.85vw, 2.8rem);
+            font-weight: 700;
+            letter-spacing: -0.015em;
+        }
+
+        .hero p {
+            margin: 0;
+            color: var(--text-secondary);
+            line-height: 1.65;
+            max-width: 60ch;
+        }
+
+        form {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .section-card {
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 1.4rem;
+            background: var(--surface-strong);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+            display: grid;
+            gap: 1.2rem;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+        }
+
+        .section-title span {
+            font-weight: 600;
+            letter-spacing: 0.01em;
+        }
+
+        .section-title .subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .field-grid {
+            display: grid;
+            gap: 1.2rem;
+        }
+
+        .field-group {
+            display: grid;
+            gap: 0.45rem;
+        }
+
+        label {
+            font-weight: 600;
+            letter-spacing: 0.01em;
+        }
+
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.75);
+            color: inherit;
+            font: inherit;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        textarea {
+            min-height: 7.5rem;
+            resize: vertical;
+        }
+
+        input[type="text"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px var(--accent-soft);
+            transform: translateY(-1px);
+        }
+
+        .messages-wrapper {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .messages-card {
+            border: 1px solid var(--border-color);
+            background: var(--surface-strong);
+            border-radius: 18px;
+            padding: 1.2rem 1.4rem;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .messages {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            gap: 0.35rem;
+            position: relative;
+        }
+
+        .messages::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 12px;
+            opacity: 0.6;
+        }
+
+        .messages li {
+            padding: 0.55rem 0.85rem;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            background: rgba(255, 255, 255, 0.65);
+        }
+
+        .messages.success::before {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.18), transparent 65%);
+        }
+
+        .messages.success li {
+            color: var(--success);
+        }
+
+        .messages.error::before {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), transparent 65%);
+        }
+
+        .messages.error li {
+            color: var(--error);
+        }
+
+        fieldset {
+            border: 0;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            gap: 1.1rem;
+        }
+
+        fieldset legend {
+            font-size: 1.05rem;
+            font-weight: 600;
+        }
+
+        .branch-list {
+            display: grid;
+            gap: 1.15rem;
+        }
+
+        .branch-card {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 0.9rem 1.25rem;
+            align-items: start;
+            padding: 1.15rem 1.35rem;
+            border-radius: 18px;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.7);
+            position: relative;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        .branch-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--accent-soft), transparent 65%);
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
+        .branch-card:hover,
+        .branch-card:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 24px 45px rgba(99, 102, 241, 0.18);
+            transform: translateY(-3px);
+        }
+
+        .branch-card:hover::after,
+        .branch-card:focus-within::after {
+            opacity: 1;
+        }
+
+        .branch-card input[type="radio"] {
+            margin-top: 0.45rem;
+            width: 22px;
+            height: 22px;
+            accent-color: var(--accent);
+            appearance: none;
+            border-radius: 50%;
+            border: 2px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.75);
+            display: grid;
+            place-content: center;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .branch-card input[type="radio"]::after {
+            content: "";
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: transparent;
+            transition: background 0.2s ease;
+        }
+
+        .branch-card input[type="radio"]:checked {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px var(--accent-soft-strong);
+        }
+
+        .branch-card input[type="radio"]:checked::after {
+            background: var(--accent);
+        }
+
+        .branch-name {
+            font-weight: 600;
+            font-size: 1.15rem;
+        }
+
+        .branch-meta {
+            display: grid;
+            gap: 0.4rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .branch-meta div {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .meta-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: rgba(99, 102, 241, 0.12);
+            color: var(--accent-strong);
+            border-radius: 999px;
+            padding: 0.25rem 0.65rem;
+            font-size: 0.78rem;
+            letter-spacing: 0.02em;
+        }
+
+        .branch-commit-message {
+            margin-top: 0.75rem;
+            font-size: 0.93rem;
+            color: var(--text-secondary);
+            white-space: pre-line;
+            line-height: 1.45;
+        }
+
+        .form-hint {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        button[type="submit"] {
+            justify-self: start;
+            border: none;
+            background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+            color: white;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            border-radius: 999px;
+            padding: 0.9rem 2.2rem;
+            cursor: pointer;
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button[type="submit"]::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, rgba(255, 255, 255, 0.25), transparent 55%);
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
+        button[type="submit"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 35px rgba(79, 70, 229, 0.35);
+        }
+
+        button[type="submit"]:hover::after {
+            opacity: 1;
+        }
+
+        button[type="submit"]:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 5px rgba(99, 102, 241, 0.35);
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .checkbox-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+        }
+
+        .checkbox-row span {
+            line-height: 1.45;
+        }
+
+        code {
+            font-family: "Fira Code", "SFMono-Regular", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.85rem;
+            background: rgba(15, 23, 42, 0.08);
+            padding: 0.1rem 0.4rem;
+            border-radius: 5px;
+        }
+
+        @media (max-width: 840px) {
+            .layout {
+                width: calc(100% - 2.5rem);
+            }
+
+            .section-card {
+                padding: 1.2rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            body {
+                align-items: stretch;
+            }
+
+            .layout {
+                width: calc(100% - 2rem);
+                margin: 2.5rem auto 3.5rem;
+            }
+
+            .branch-card {
+                grid-template-columns: 1fr;
+            }
+
+            .branch-card input[type="radio"] {
+                justify-self: flex-start;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>GitHub Branch Update Workflow</h1>
+    <div class="backdrop" aria-hidden="true">
+        <span class="orb-a"></span>
+        <span class="orb-b"></span>
+        <span class="orb-c"></span>
+    </div>
+    <main class="layout">
+        <div class="app-card">
+            <header class="hero">
+                <span class="hero-label">Update Assistant</span>
+                <h1>GitHub Branch Update Workflow</h1>
+                <p>Verwalten Sie Aktualisierungen Ihres Projekts mit wenigen Klicks: Branch auswählen, optionales Backup erstellen und zielgenau deployen.</p>
+            </header>
 
-    <p>Wählen Sie GitHub Owner, Repository und Branch, um die Dateien in Ihrem Zielverzeichnis zu aktualisieren. Optional kann vor dem Update ein ZIP-Backup erstellt werden.</p>
+            <?php if ($messages || $errors): ?>
+                <div class="messages-wrapper">
+                    <div class="messages-card">
+                        <?php if ($messages): ?>
+                            <ul class="messages success">
+                                <?php foreach ($messages as $message): ?>
+                                    <li><?= htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
 
-    <?php if ($messages): ?>
-        <ul class="messages success">
-            <?php foreach ($messages as $message): ?>
-                <li><?= htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></li>
-            <?php endforeach; ?>
-        </ul>
-    <?php endif; ?>
+                        <?php if ($errors): ?>
+                            <ul class="messages error">
+                                <?php foreach ($errors as $error): ?>
+                                    <li><?= htmlspecialchars($error, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
 
-    <?php if ($errors): ?>
-        <ul class="messages error">
-            <?php foreach ($errors as $error): ?>
-                <li><?= htmlspecialchars($error, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></li>
-            <?php endforeach; ?>
-        </ul>
-    <?php endif; ?>
-
-    <form method="post">
+            <form method="post">
+        <div class="section-card">
+            <div class="section-title">
+                <span>Repository-Informationen</span>
+                <span class="subtitle">Owner und Projekt angeben</span>
+            </div>
+            <div class="field-grid">
         <input type="hidden" name="state" value="<?= $state === FORM_STATE_SELECT_BRANCH ? FORM_STATE_DOWNLOAD : FORM_STATE_SELECT_BRANCH ?>">
-        <label for="owner">GitHub Owner</label>
-        <input type="text" name="owner" id="owner" value="<?= htmlspecialchars($owner, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" required>
+        <div class="field-group">
+            <label for="owner">GitHub Owner</label>
+            <input type="text" name="owner" id="owner" value="<?= htmlspecialchars($owner, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" required>
+        </div>
 
-        <label for="repository">Repository</label>
-        <input type="text" name="repository" id="repository" value="<?= htmlspecialchars($repository, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" required>
+        <div class="field-group">
+            <label for="repository">Repository</label>
+            <input type="text" name="repository" id="repository" value="<?= htmlspecialchars($repository, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" required>
+        </div>
+            </div>
+        </div>
 
         <?php if ($state === FORM_STATE_SELECT_BRANCH && $branches): ?>
+            <div class="section-card">
+                <div class="section-title">
+                    <span>Branch auswählen</span>
+                    <span class="subtitle">Commit-Details &amp; Zeitleiste im Blick</span>
+                </div>
             <fieldset>
-                <legend>Branch auswählen</legend>
+
                 <div class="branch-list">
                     <?php foreach ($branches as $index => $branchInfo): ?>
                         <?php $name = $branchInfo['name']; ?>
@@ -554,15 +1081,27 @@ function formatIsoDate(?string $isoDate): ?string
                                     $commitSha = $branchInfo['commit_sha'] ?? null;
                                     ?>
                                     <?php if ($createdDisplay !== null): ?>
-                                        <div>Erstellt am: <time datetime="<?= htmlspecialchars((string) $createdIso, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"><?= htmlspecialchars($createdDisplay, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></time></div>
+                                        <div>
+                                            <span class="meta-pill">Erstellt</span>
+                                            <time datetime="<?= htmlspecialchars((string) $createdIso, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"><?= htmlspecialchars($createdDisplay, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></time>
+                                        </div>
                                     <?php endif; ?>
                                     <?php if ($updatedDisplay !== null && $updatedDisplay !== $createdDisplay): ?>
-                                        <div>Zuletzt aktualisiert: <time datetime="<?= htmlspecialchars((string) $updatedIso, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"><?= htmlspecialchars($updatedDisplay, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></time></div>
+                                        <div>
+                                            <span class="meta-pill">Zuletzt aktualisiert</span>
+                                            <time datetime="<?= htmlspecialchars((string) $updatedIso, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"><?= htmlspecialchars($updatedDisplay, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></time>
+                                        </div>
                                     <?php elseif ($updatedDisplay !== null): ?>
-                                        <div>Stand: <time datetime="<?= htmlspecialchars((string) $updatedIso, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"><?= htmlspecialchars($updatedDisplay, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></time></div>
+                                        <div>
+                                            <span class="meta-pill">Stand</span>
+                                            <time datetime="<?= htmlspecialchars((string) $updatedIso, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"><?= htmlspecialchars($updatedDisplay, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></time>
+                                        </div>
                                     <?php endif; ?>
                                     <?php if ($commitSha): ?>
-                                        <div>Commit: <code><?= htmlspecialchars(substr($commitSha, 0, 8), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></code></div>
+                                        <div>
+                                            <span class="meta-pill">Commit</span>
+                                            <code><?= htmlspecialchars(substr($commitSha, 0, 8), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></code>
+                                        </div>
                                     <?php endif; ?>
                                 </div>
                                 <?php if (!empty($branchInfo['commit_message'])): ?>
@@ -574,20 +1113,34 @@ function formatIsoDate(?string $isoDate): ?string
                 </div>
             </fieldset>
 
-            <label for="target_directory">Zielverzeichnis</label>
-            <input type="text" name="target_directory" id="target_directory" value="<?= htmlspecialchars($targetDirectory, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" required>
+            <div class="field-grid">
+            <div class="field-group">
+                <label for="target_directory">Zielverzeichnis</label>
+                <input type="text" name="target_directory" id="target_directory" value="<?= htmlspecialchars($targetDirectory, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" required>
+            </div>
 
-            <label for="excludes">Pfade vom Update ausschließen (ein Eintrag pro Zeile)</label>
-            <textarea name="excludes" id="excludes" rows="4" placeholder="z. B. config.php oder storage/"><?= htmlspecialchars($excludesInput, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></textarea>
-            <p><small>Pfadangaben beziehen sich auf die Projektwurzel. Unterordner bitte mit abschließendem Slash angeben, z.&nbsp;B. <code>storage/</code>.</small></p>
+            <div class="field-group">
+                <label for="excludes">Pfade vom Update ausschließen (ein Eintrag pro Zeile)</label>
+                <textarea name="excludes" id="excludes" rows="4" placeholder="z. B. config.php oder storage/"><?= htmlspecialchars($excludesInput, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></textarea>
+                <p class="form-hint">Pfadangaben beziehen sich auf die Projektwurzel. Unterordner bitte mit abschließendem Slash angeben, z.&nbsp;B. <code>storage/</code>.</p>
+            </div>
 
-            <label>
-                <input type="checkbox" name="create_backup" <?= $createBackup ? 'checked' : '' ?>> Vor dem Update ein ZIP-Backup anlegen
+            <label class="checkbox-row">
+                <input type="checkbox" name="create_backup" <?= $createBackup ? 'checked' : '' ?>>
+                <span>Vor dem Update ein ZIP-Backup anlegen</span>
             </label>
 
-            <p><strong>Workflow-Intro:</strong> Beim Absenden wird der ausgewählte Branch heruntergeladen und in das Zielverzeichnis extrahiert. Dabei werden vorhandene Dateien überschrieben.</p>
+            <p class="form-hint">Workflow-Intro: Beim Absenden wird der ausgewählte Branch heruntergeladen und in das Zielverzeichnis extrahiert. Dabei werden vorhandene Dateien überschrieben.</p>
+            </div>
+            </div>
         <?php else: ?>
-            <p>Nach dem Absenden werden die verfügbaren Branches des Repositories geladen.</p>
+            <div class="section-card">
+                <div class="section-title">
+                    <span>Workflow vorbereiten</span>
+                    <span class="subtitle">Branches abrufen &amp; prüfen</span>
+                </div>
+            <p class="form-hint">Nach dem Absenden werden die verfügbaren Branches des Repositories geladen.</p>
+            </div>
         <?php endif; ?>
 
         <?php if ($state === FORM_STATE_SELECT_BRANCH && $branches): ?>
@@ -595,6 +1148,8 @@ function formatIsoDate(?string $isoDate): ?string
         <?php else: ?>
             <button type="submit">Branches laden</button>
         <?php endif; ?>
-    </form>
+            </form>
+        </div>
+    </main>
 </body>
 </html>

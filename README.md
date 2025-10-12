@@ -1,9 +1,8 @@
 # GitHub Update Script
 
-Dieses Projekt enthält ein einzelnes PHP-Script (`update.php`), das direkt im Webroot Ihres Servers abgelegt werden kann. Es ermöglicht Ihnen, einen GitHub-Owner, ein Repository und einen Branch zu wählen und die Dateien des Branches in ein Zielverzeichnis zu übernehmen. Optional kann vor dem Update ein ZIP-Backup erstellt werden.
+Dieses Projekt enthält ein einzelnes PHP-Script (`update.php`), das direkt im Webroot Ihres Servers abgelegt werden kann. Es ermöglicht Ihnen, einen GitHub-Owner, ein Repository und einen Branch zu wählen und die Dateien des Branches in ein Zielverzeichnis zu übernehmen. Optional kann vor dem Update ein ZIP-Backup erstellt werden. Die Oberfläche präsentiert sich jetzt mit schwebenden Farbverläufen, gläsernen Cards und dezenten Animationen, sodass der Workflow nicht nur funktional bleibt, sondern sich auch wie ein modernes Dashboard anfühlt.
 
 ## Voraussetzungen
-
 - PHP 7.4 oder neuer mit den Erweiterungen `curl`, `zip` und `json` (PHP 8.x wird empfohlen)
 - Schreibrechte im Zielverzeichnis sowie im Verzeichnis, in dem `update.php` liegt (für temporäre Dateien und Konfiguration)
 - Ausgehender HTTP-Zugriff auf `api.github.com` und `codeload.github.com`
@@ -25,7 +24,6 @@ return [
         'storage/',
     ],
     'target_directory' => __DIR__,
-
     'auth' => [
         'username' => 'admin',
         'password_hash' => '$2y$12$v1OUgsjnzQ7o3vrZCMSxteopMaWbIoB5KGt7HlPgQuqIuMdKHo2Y2',
